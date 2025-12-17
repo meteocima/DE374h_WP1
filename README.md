@@ -27,8 +27,13 @@ A comprehensive system for downloading and processing weather forecast data from
 
 1. **Clone the repository**
    ```bash
-   git clone <repository-url>
-   cd DE374_lot2
+   # HTTPS (recommended for most users)
+   git clone https://github.com/meteocima/DE374h_WP1.git
+   cd DE374h_WP1
+   
+   # SSH (for users with SSH keys configured)
+   git clone git@github.com:meteocima/DE374h_WP1.git
+   cd DE374h_WP1
    ```
 
 2. **Install dependencies**
