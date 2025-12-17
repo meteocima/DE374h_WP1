@@ -112,16 +112,17 @@ sbatch Scripts/crontab_edt_hist.job 20241201
 
 ```
 DE374_lot2/
-├── README.md                    # This file
-├── pyproject.toml              # Project configuration and dependencies
-├── Scripts/                    # Main application scripts
-│   ├── DE374h_download.py      # Main download script
-│   ├── c_api_request.py        # API request handling
-│   ├── c_directories.py        # Directory management
-│   ├── create_zarr.py          # Data format conversion
-│   ├── polytope_check.ipynb    # Data availability notebook
-│   └── crontab_*.job          # SLURM job scripts
-└── .venv/                      # Virtual environment (created after setup)
+├── README.md                          # This file
+├── LICENSE                           # MIT License
+├── pyproject.toml                    # UV Project configuration and dependencies
+├── edt_polytope_availability.csv    # Polytope data availability (04/04/2024 - 22/11/2025)
+└── Scripts/                          # Main application scripts
+    ├── DE374h_download.py           # Main download script
+    ├── c_api_request.py             # API request handling
+    ├── c_directories.py             # Directory management
+    ├── create_zarr.py               # Data format conversion
+    ├── polytope_check.ipynb         # Data availability notebook
+    └── crontab_*.job               # SLURM job scripts
 ```
 
 ## 📊 Data Sources
@@ -152,7 +153,8 @@ The system automatically configures storage paths based on the environment:
 
 - **Local**: `~/CIMA/202508_ECMWF_LOT2_DATAPROCUREMENT/`
 - **Leonardo HPC**: 
-  - Data: `/leonardo_work/DE374_lot2_0/IFS/`
+  - IFS Data: `/leonardo_work/DE374_lot2_0/IFS/`
+  - Extremes-DT Data: `/leonardo_scratch/fast/DE374_lot2/extremes-dt/`
   - Scratch: `/leonardo_scratch/large/userexternal/lmonaco0/DE374_lot2/`
 
 ### Supported Parameters
@@ -183,18 +185,26 @@ The system automatically configures storage paths based on the environment:
 
 ## 📝 Monitoring and Validation
 
-Use the Jupyter notebook for data availability checking:
+### Data Availability Reports
+
+**Historical Availability Data:**
+The project includes a comprehensive availability report for Extremes-DT data:
+- **edt_polytope_availability.csv**: Complete availability matrix from Polytope service launch (April 4, 2024) through November 22, 2025
+- Shows parameter availability by date for systematic data procurement planning
+
+**Interactive Analysis:**
+Use the Jupyter notebook for real-time data availability checking:
 
 ```bash
 # Launch notebook for interactive checking
 jupyter lab Scripts/polytope_check.ipynb
 ```
 
-The notebook provides:
-- Historical availability analysis
-- Parameter-specific availability reports
-- Data quality validation
-- Sample data download and verification
+The monitoring system provides:
+- Historical availability analysis from existing CSV reports
+- Real-time parameter-specific availability testing
+- Data quality validation and verification
+- Sample data download and format checking
 
 ## 🤝 Contributing
 
