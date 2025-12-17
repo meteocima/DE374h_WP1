@@ -1,166 +1,199 @@
+"""
+DE374h_download.py
+
+Download script for weather forecast data from ECMWF IFS and Extremes-DT.
+Supports multiple data sources (IFS operational, Extremes-DT) and different
+computing environments (local, ATOS, Leonardo).
+
+Usage:
+    python DE374h_download.py --nwp ifs --run_where leonardo --date_i 20251215 --date_f 20251217
+"""
+
+# Standard library imports
 import os
 import sys
 import argparse
 import datetime
 import subprocess
+
+# Local imports
 from c_directories import c_directories
 from c_api_request import c_api_request
+
+# Third-party imports
 import eccodes as ecc
 
 def main(
-    nwp:str,
-    run_where:str,
-    date_i:str,
-    date_f:str,
-):    
-    dirs=c_directories(nwp,run_where)
-    nwp_download=c_api_request(date_i,date_f, "70.5/-23.5/29.5/62.5")
+    nwp: str,
+    run_where: str,
+    date_i: str,
+    date_f: str,
+):
+    """
+    Main function to download weather forecast data.
+    
+    Args:
+        nwp: NWP model type ('ifs' or 'edt')
+        run_where: Computing environment ('local', 'atos', or 'leonardo')
+        date_i: Start date in YYYYMMDD format
+        date_f: End date in YYYYMMDD format
+    """
+    # Initialize directory structure based on NWP model and environment
+    dirs = c_directories(nwp, run_where)
+    
+    # Initialize API request handler with date range and geographic bounds
+    # Area: North/West/South/East = 70.5/-23.5/29.5/62.5 (Europe region)
+    nwp_download = c_api_request(date_i, date_f, "70.5/-23.5/29.5/62.5")
+    
+    # Convert string dates to datetime objects for iteration
     start = datetime.datetime.strptime(date_i, "%Y%m%d")
     end = datetime.datetime.strptime(date_f, "%Y%m%d")
+    # Initialize date iterator
     d = start
-    if nwp=="ifs":
+    
+    # Process IFS operational data via MARS
+    if nwp == "ifs":
         while d <= end:
+            # Convert datetime to string format for file naming
             ds = d.strftime("%Y%m%d")
 
+            # Create MARS request for IFS data
             request = nwp_download.mars_get_ifs(ds)
-            final_file = dirs.get_final_grib_path(ds)            
-            nwp_download.perform_mars_request(request,final_file)
+            final_file = dirs.get_final_grib_path(ds)
+            
+            # Execute MARS request and download to final file
+            nwp_download.perform_mars_request(request, final_file)
 
+            # Move to next day
             d += datetime.timedelta(days=1)
-    elif nwp=="edt":
+    # Process Extremes-DT data via Polytope
+    elif nwp == "edt":
         while d <= end:
+            # Parameter list changes based on date due to system updates
             if d < datetime.datetime(2025, 2, 5):
-                params = ["228","167", "168", "165", "166","228246", "228247"]
+                # Old parameter set: includes 228246, 228247 (100m wind components)
+                params = ["228", "167", "168", "165", "166", "228246", "228247"]
             else:
-                params = ["228","167", "168", "165", "166", "131", "132"]
+                # New parameter set: includes 131, 132 (u/v wind components)
+                params = ["228", "167", "168", "165", "166", "131", "132"]
 
-            ds = d.strftime("%Y%m%d")  
-            final_file = dirs.get_final_grib_path(ds)                  
+            ds = d.strftime("%Y%m%d")
+            final_file = dirs.get_final_grib_path(ds)
+            # Process each weather parameter separately
             for p in params:
-                request = nwp_download.polytope_get_instant_variables_request(ds,p)
+                # Create Polytope request for specific parameter
+                request = nwp_download.polytope_get_instant_variables_request(ds, p)
                 tmp_grib_path = dirs.get_sfc_temp_path(ds, p)
-                result=nwp_download.perform_politope_request(request, tmp_grib_path)
+                
+                # Download parameter data to temporary file
+                result = nwp_download.perform_politope_request(request, tmp_grib_path)
+                
                 if result:
-                    # If "228" is in the output file path, modify step range to start from 0
-                    if p=="228":                    
-                        # Process and modify the GRIB messages
+                    # Special handling for precipitation (param 228)
+                    # Need to modify GRIB step metadata to start from 0
+                    if p == "228":                    
+                        # Process and modify the GRIB messages for precipitation
+                        # Precipitation accumulation needs step adjustment
                         modified_messages = []
                         with open(tmp_grib_path, 'rb') as f:
                             while True:
+                                # Read next GRIB message from file
                                 msg = ecc.codes_grib_new_from_file(f)
                                 if msg is None:
                                     break
                                 
-                                # # Get current step values
+                                # Extract current forecast step information
                                 step_start = ecc.codes_get(msg, 'forecastTime')
                                 step_end = ecc.codes_get(msg, 'endStep') if ecc.codes_is_defined(msg, 'endStep') else step_start
                                 
-                                # Set start step to 0
+                                # Modify step to start from 0 (for accumulation)
                                 ecc.codes_set(msg, 'forecastTime', 0)
                                 if ecc.codes_is_defined(msg, 'startStep'):
                                     ecc.codes_set(msg, 'startStep', 0)
                                     ecc.codes_set(msg, 'endStep', step_end)
                                 
-                                # Get the modified message as bytes
+                                # Store modified message for writing back
                                 modified_messages.append(ecc.codes_get_message(msg))
                                 ecc.codes_release(msg)
                         
                         # Write the modified messages back to the file
                         with open(tmp_grib_path, 'wb') as f:
                             for msg_bytes in modified_messages:
-                                f.write(msg_bytes) 
+                                f.write(msg_bytes)
                         print("Modifiche step completate per il file", tmp_grib_path)               
 
-            edt_files = [f for f in os.listdir(dirs.nwp_temp) if "edt" in f and ds in f]
+            # Find all EDT temporary files for current date
+            edt_files = [
+                f for f in os.listdir(dirs.nwp_temp)
+                if "edt" in f and ds in f
+            ]
 
+            # Merge all parameter files into single daily file
             if edt_files:
                 final_file = dirs.get_final_grib_path(ds)
-                edt_file_paths = [os.path.join(dirs.nwp_temp, f) for f in edt_files]
+                edt_file_paths = [
+                    os.path.join(dirs.nwp_temp, f) for f in edt_files
+                ]
                 
-                subprocess.run(["grib_copy"] + edt_file_paths + [final_file], check=True)
+                # Use grib_copy to concatenate all parameter files
+                subprocess.run(
+                    ["grib_copy"] + edt_file_paths + [final_file],
+                    check=True
+                )
                 
-                # Cleanup temporary files
+                # Remove temporary files to save disk space
                 for file_path in edt_file_paths:
                     os.remove(file_path)
 
+            # Move to next day
             d += datetime.timedelta(days=1)
 
-    # if (date_f==datetime.date.today().strftime("%Y-%m-%d") and date_i==datetime.date.today().strftime("%Y-%m-%d")):
-    #     print("Scaricamento giornata di previsione Extremes-DT per oggi", date_i)        
-    #     # ----- Istantanee superficie (T2m, U10, V10, Td) -----
-    #     instant_sfc_request = extremes_dt.polytope_get_instant_variables_request()
-    #     instant_sfc_file = dirs.get_sfc_temp_path(date_i)
-    #     extremes_dt.perform_politope_request(instant_sfc_request, instant_sfc_file)
-
-    #     # ----- Precipitazione cumulata -----
-    #     tp_request = extremes_dt.polytope_get_precip_request()
-    #     tp_file = dirs.get_tp_temp_path(date_i)
-    #     extremes_dt.perform_politope_request(tp_request, tp_file)
-
-
-    #     final_file = dirs.get_final_grib_path(date_i)
-
-    #     subprocess.run(["grib_copy", instant_sfc_file, tp_file, final_file],
-    #                 check=True)
-
-    #     # cleanup temporanei
-    #     os.remove(instant_sfc_file)
-
-    #     if tp_file:
-    #         os.remove(tp_file)
-    #     print("Download e merge completati per la data", date_i)
-    # else: #download archived data from MARS
-    #     df_available_date=pd.read_csv(dirs.extremesdt_available_dates_file, header=None, sep=" ")
-    #     df_available_date=df_available_date.loc[(df_available_date[1]==336),0]
-    #     start = datetime.datetime.strptime(date_i, "%Y-%m-%d")
-    #     end = datetime.datetime.strptime(date_f, "%Y-%m-%d")
-    #     d = start
-    #     while d <= end:
-    #         ds = d.strftime("%Y%m%d")
-    #         if ds in df_available_date.values.astype(str):
-    #             request = extremes_dt.mars_get_instant_variables_request(ds)
-    #             final_file = dirs.get_final_grib_path(ds)            
-    #             extremes_dt.perform_mars_request(request,final_file)
-    #         else:
-    #             print(f"Data {ds} non disponibile per Extremes-DT o incompleta (verificare {dirs.extremesdt_available_dates_file})")
-    #         d += datetime.timedelta(days=1)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Scarica previsioni di Extremes-DT")
+    # Set up command line argument parsing
+    parser = argparse.ArgumentParser(
+        description="Download weather forecast data from ECMWF IFS or Extremes-DT"
+    )
+    
+    # NWP model selection
     parser.add_argument(
         "--nwp",
         type=str,
-        help="Modelli supportati: ifs, edt (default: ifs)",
+        help="NWP model: 'ifs' (ECMWF operational) or 'edt' (Extremes-DT)",
         default="ifs",
-    )     
+    )
+    
+    # Computing environment selection
     parser.add_argument(
         "--run_where",
         type=str,
-        help="local, atos (ita3494), leonardo",
+        help="Computing environment: 'local', 'atos' (ita3494), or 'leonardo'",
         default="local",
     )    
+    # Date range arguments
     parser.add_argument(
         "--date_i",
         type=str,
-        help="Data in formato YYYYMMDD (default: oggi)",
+        help="Start date in YYYYMMDD format (default: today)",
         default=datetime.date.today().strftime("%Y%m%d"),
     )
     parser.add_argument(
         "--date_f",
         type=str,
-        help="Data in formato YYYYMMDD (default: oggi)",
+        help="End date in YYYYMMDD format (default: today)",
         default=datetime.date.today().strftime("%Y%m%d"),
     )
 
+    # Parse command line arguments
     args = parser.parse_args()
 
-    # validazione formato data
+    # Validate date format before proceeding
     try:
         datetime.datetime.strptime(args.date_i, "%Y%m%d")
         datetime.datetime.strptime(args.date_f, "%Y%m%d")
-
     except ValueError:
-        print("Errore: la data deve essere nel formato YYYYMMDD")
+        print("Error: Date must be in YYYYMMDD format")
         sys.exit(1)
 
-    main(args.nwp,args.run_where,args.date_i,args.date_f)
+    # Execute main function with parsed arguments
+    main(args.nwp, args.run_where, args.date_i, args.date_f)
