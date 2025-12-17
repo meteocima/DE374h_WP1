@@ -20,6 +20,6 @@ module unload eccodes
 
 next_date=$(date -d "$start_date -1 day" +"%Y%m%d")
 echo "Next date: $next_date"
-if [[ "$next_date" -ge "20240404" ]]; then
+if [[ "$next_date" -ge "20240530" ]]; then
     sbatch "/leonardo/home/userexternal/lmonaco0/DE374_lot2/Scripts/crontab_edt_hist.job" "$next_date"
 fi
