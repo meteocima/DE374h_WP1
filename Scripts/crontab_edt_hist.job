@@ -1,0 +1,25 @@
+#!/bin/bash
+#SBATCH --job-name=de374h_edt_hist
+#SBATCH --output=/leonardo_scratch/large/userexternal/lmonaco0/DE374_lot2/extremes-dt/log/extremes_dt_log_%j.out
+#SBATCH --error=/leonardo_scratch/large/userexternal/lmonaco0/DE374_lot2/extremes-dt/err/extremes_dt_err_%j.err
+#SBATCH --time=4:00:00
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=4G
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=luca.monaco@cimafoundation.org
+
+module load eccodes/2.33.0--intel-oneapi-mpi--2021.12.1--oneapi--2024.1.0
+cd $HOME/DE374_lot2/
+
+start_date=${1:-$(date +"%Y%m%d")}
+echo "Start date: $start_date"
+# 4. Lancia il tuo script
+uv run Scripts/DE374h_download.py --nwp edt --run_where leonardo --date_i "$start_date" --date_f "$start_date"
+module unload eccodes
+
+next_date=$(date -d "$start_date -1 day" +"%Y%m%d")
+echo "Next date: $next_date"
+if [[ "$next_date" -ge "20240404" ]]; then
+    sbatch "/leonardo/home/userexternal/lmonaco0/DE374_lot2/Scripts/crontab_edt_hist.job" "$next_date"
+fi

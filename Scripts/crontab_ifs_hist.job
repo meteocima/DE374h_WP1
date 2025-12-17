@@ -1,0 +1,23 @@
+#!/bin/bash
+#SBATCH --job-name=de374h_ifs
+#SBATCH --output=/leonardo_scratch/large/userexternal/lmonaco0/DE374_lot2/ifs/log/ifs_log_%j.out
+#SBATCH --error=/leonardo_scratch/large/userexternal/lmonaco0/DE374_lot2/ifs/err/ifs_err_%j.err
+#SBATCH --time=4:00:00
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=4G
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=luca.monaco@cimafoundation.org
+
+cd $HOME/DE374_lot2/
+
+start_date=${1:-$(date +"%Y%m%d")}
+echo "Start date: $start_date"
+# 4. Lancia il tuo script
+uv run Scripts/DE374h_download.py --nwp ifs --run_where leonardo --date_i "$start_date" --date_f "$start_date"
+
+next_date=$(date -d "$start_date -1 day" +"%Y%m%d")
+echo "Next date: $next_date"
+if [[ "$next_date" -ge "20240601" ]]; then
+    sbatch "/leonardo/home/userexternal/lmonaco0/DE374_lot2/Scripts/crontab_ifs_hist.job" "$next_date"
+fi
