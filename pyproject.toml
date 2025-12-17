@@ -3,10 +3,10 @@ name = "de374-lot2"
 version = "0.1.0"
 description = "DE374h data gathering and management project"
 readme = "README.md"
-requires-python = "~=3.11"
+requires-python = "~=3.11.0"
 dependencies = [
     "earthkit==0.13.2",
-    "eccodes==2.44.1",
+    "eccodes==2.44.0",
     "ipykernel==7.1.0",
     "pandas==2.3.3",
 ]
