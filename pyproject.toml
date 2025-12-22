@@ -9,4 +9,7 @@ dependencies = [
     "eccodes==2.44.0",
     "ipykernel==7.1.0",
     "pandas==2.3.3",
+    "pygrib==2.1.8",
+    "zarr==2.18",
+    "numcodecs>=0.12.0,<0.13.0",
 ]
