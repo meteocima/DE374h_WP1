@@ -1,0 +1,24 @@
+#!/bin/bash
+#SBATCH --job-name=de374h_create_zarr
+#SBATCH --output=/leonardo_scratch/large/userexternal/lmonaco0/DE374_lot2/zarr_deliv/log/create_zarr_log_%j.out
+#SBATCH --error=/leonardo_scratch/large/userexternal/lmonaco0/DE374_lot2/zarr_deliv/err/create_zarr_err_%j.err
+#SBATCH --time=4:00:00
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=16G
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=luca.monaco@cimafoundation.org
+
+# Change to project directory
+cd $HOME/DE374_lot2/
+
+# Set date range (default: yesterday)
+# Can be overridden by passing arguments to sbatch
+START_DATE=${1:-$(date -d "yesterday" +"%Y%m%d")}
+END_DATE=${2:-$(date -d "yesterday" +"%Y%m%d")}
+
+# Run the create_zarr.py script
+uv run Scripts/create_zarr.py \
+    --run_where leonardo \
+    --start-date "$START_DATE" \
+    --end-date "$END_DATE"

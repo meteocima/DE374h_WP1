@@ -10,9 +10,11 @@ This script provides a detailed view of a Zarr dataset, including:
 - Storage size information
 
 Usage:
-    python show_zarr.py [zarr_path]
+    python show_zarr.py [--run-where {local,leonardo}] [zarr_path]
 
-If no path is provided, defaults to ./zarr_file/DE374h_deliv.zarr
+If no path is provided, defaults based on --run-where:
+    - local: ./zarr_file/DE374h_deliv.zarr
+    - leonardo: /leonardo_scratch/fast/DE374_lot2/zarr_deliv/DE374h_deliv.zarr
 """
 
 import argparse
@@ -114,15 +116,33 @@ def main() -> int:
         description='Display the structure of a Zarr dataset'
     )
     parser.add_argument(
+        '--run-where',
+        type=str,
+        default='local',
+        choices=['local', 'leonardo'],
+        help='Environment where the code is running (default: local)'
+    )
+    parser.add_argument(
         'zarr_path',
         type=str,
         nargs='?',
-        default='./zarr_file/DE374h_deliv.zarr',
+        default=None,
         help='Path to the Zarr dataset directory '
-             '(default: ./zarr_file/DE374h_deliv.zarr)'
+             '(default: depends on environment)'
     )
 
     args = parser.parse_args()
+    
+    # Set environment-specific default for zarr path
+    if args.zarr_path is None:
+        if args.run_where == 'leonardo':
+            args.zarr_path = (
+                '/leonardo_scratch/fast/DE374_lot2/zarr_deliv/'
+                'DE374h_deliv.zarr'
+            )
+        else:  # local
+            args.zarr_path = './zarr_file/DE374h_deliv.zarr'
+    
     zarr_path = Path(args.zarr_path)
 
     # Check if the zarr dataset exists
