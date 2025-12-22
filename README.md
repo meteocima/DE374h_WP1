@@ -113,6 +113,71 @@ Download historical Extremes-DT data recursively backward in time. Starts from t
 sbatch Scripts/crontab_edt_hist.job 20241201
 ```
 
+### Zarr Dataset Creation
+
+**Convert GRIB to Zarr Format:**
+Transform downloaded GRIB files into optimized Zarr format for efficient storage and access:
+
+**Local Development:**
+```bash
+# Convert single day (yesterday by default)
+uv run Scripts/create_zarr.py --run-where local
+
+# Convert specific date
+uv run Scripts/create_zarr.py --run-where local --start-date 20241215 --end-date 20241215
+
+# Convert date range
+uv run Scripts/create_zarr.py --run-where local --start-date 20241201 --end-date 20241205
+```
+
+**HPC Production:**
+```bash
+# Interactive run for single day
+uv run Scripts/create_zarr.py --run-where leonardo --start-date 20241215 --end-date 20241215
+
+# Submit SLURM job (default: yesterday's data)
+sbatch Scripts/create_zarr.job
+
+# Submit with custom date range
+sbatch Scripts/create_zarr.job 20241215 20241220
+```
+
+**Zarr Creation Options:**
+
+| Option | Description | Values | Default |
+|--------|-------------|---------|---------|
+| `--run-where` | Computing environment | `local`, `leonardo` | `local` |
+| `--start-date` | Start date | `YYYYMMDD` | Today |
+| `--end-date` | End date | `YYYYMMDD` | Today |
+| `--grib-dir` | Input GRIB directory | Path | Auto (env-dependent) |
+| `--output` | Output Zarr path | Path | Auto (env-dependent) |
+| `--chunk-time` | Time dimension chunk size | Integer | `1` |
+| `--chunk-lat` | Latitude chunk size | Integer | `None` |
+| `--chunk-lon` | Longitude chunk size | Integer | `None` |
+| `--compression` | Compression algorithm | `zstd`, `gzip`, `bz2`, `lz4` | `zstd` |
+| `--compression-level` | Compression level | Integer | `3` |
+
+**View Zarr Dataset Structure:**
+Inspect the contents and structure of created Zarr datasets:
+
+```bash
+# Local environment
+uv run Scripts/show_zarr.py --run-where local
+
+# Leonardo HPC
+uv run Scripts/show_zarr.py --run-where leonardo
+
+# Custom path
+uv run Scripts/show_zarr.py /path/to/dataset.zarr
+```
+
+The viewer displays:
+- Global dataset attributes
+- All variables with shapes, data types, and chunks
+- Variable-specific attributes and metadata
+- Sample values for coordinate arrays
+- Storage size information (per variable and total)
+
 ## 📁 Project Structure
 
 ```
@@ -125,9 +190,11 @@ DE374_lot2/
     ├── DE374h_download.py           # Main download script
     ├── c_api_request.py             # API request handling
     ├── c_directories.py             # Directory management
-    ├── create_zarr.py               # Data format conversion
+    ├── create_zarr.py               # GRIB to Zarr conversion
+    ├── show_zarr.py                 # Zarr dataset viewer
     ├── polytope_check.ipynb         # Data availability notebook
-    └── crontab_*.job               # SLURM job scripts
+    ├── create_zarr.job              # SLURM job for Zarr creation
+    └── crontab_*.job               # SLURM scheduling scripts
 ```
 
 ## 📊 Data Sources
