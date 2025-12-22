@@ -18,6 +18,6 @@ uv run Scripts/DE374h_download.py --nwp ifs --run_where leonardo --date_i "$star
 
 next_date=$(date -d "$start_date -1 day" +"%Y%m%d")
 echo "Next date: $next_date"
-if [[ "$next_date" -ge "20240601" ]]; then
+if [[ "$next_date" -ge "20200101" ]]; then
     sbatch "/leonardo/home/userexternal/lmonaco0/DE374_lot2/Scripts/crontab_ifs_hist.job" "$next_date"
 fi
