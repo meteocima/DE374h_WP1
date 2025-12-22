@@ -594,7 +594,7 @@ def main(args) -> None:
 
     # Print summary information
     print(f"\nZarr dataset created successfully at {output_path}")
-    print(f"Dataset info:")
+    print("Dataset info:")
     print(f"  Forecast variables: {', '.join(FORECAST_VARS)}")
     print(f"  Analysis variables: {', '.join(ANALYSIS_VARS)}")
     print(f"  Time dimension: {len(dates)}")
