@@ -1,0 +1,54 @@
+#!/bin/bash
+#SBATCH --job-name=mars_check
+#SBATCH --output=/leonardo_scratch/large/userexternal/lmonaco0/DE374_lot2/zarr_deliv/log/mars_check_log_%j.out
+#SBATCH --error=/leonardo_scratch/large/userexternal/lmonaco0/DE374_lot2/zarr_deliv/err/mars_check_err_%j.err
+#SBATCH --time=4:00:00
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=8G
+#SBATCH --mail-type=BEGIN,END,FAIL
+#SBATCH --mail-user=luca.monaco@cimafoundation.org
+
+# Change to project directory
+cd $HOME/DE374_lot2/
+
+# Date range parameters (can be overridden when submitting the job)
+START_DATE=${1:-"20241111"}
+END_DATE=${2:-"20241114"}
+
+echo "=================================================="
+echo "MARS IFS Availability Check"
+echo "=================================================="
+echo "Start date: $START_DATE"
+echo "End date: $END_DATE"
+echo "Job ID: $SLURM_JOB_ID"
+echo "Node: $SLURM_NODELIST"
+echo "=================================================="
+echo ""
+
+# Set PYTHONPATH to include the Scripts directory
+export PYTHONPATH="${HOME}/DE374_lot2/Scripts:${HOME}/DE374_lot2:${PYTHONPATH}"
+
+# Execute the notebook using papermill
+# This will run the notebook and save output to a new notebook
+uv run papermill \
+    Scripts/mars_check.ipynb \
+    Scripts/mars_check_output_${SLURM_JOB_ID}.ipynb \
+    -p date_i "$START_DATE" \
+    -p date_f "$END_DATE" \
+    -k python3
+
+# Check exit status
+if [ $? -eq 0 ]; then
+    echo ""
+    echo "=================================================="
+    echo "Notebook executed successfully!"
+    echo "Output saved to: Scripts/mars_check_output_${SLURM_JOB_ID}.ipynb"
+    echo "=================================================="
+else
+    echo ""
+    echo "=================================================="
+    echo "ERROR: Notebook execution failed!"
+    echo "=================================================="
+    exit 1
+fi
