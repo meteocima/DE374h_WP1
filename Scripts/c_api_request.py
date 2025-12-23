@@ -180,7 +180,7 @@ class c_api_request:
         - 40: Volumetric soil moisture (layer 2)
         - 41: Volumetric soil moisture (layer 3) 
         - 42: Volumetric soil moisture (layer 4)
-        - 43: Soil type
+        - 43: Soil type (available from 20241113 onwards)
         - 172: Land-sea mask
         - 26: Lake cover
         - 129: Geopotential (surface orography)
@@ -194,16 +194,29 @@ class c_api_request:
         # Generate forecast steps from 0 to 48 hours
         forecast_steps = "/".join(str(i) for i in range(0, 49))
         
+        # Soil type (parameter 43) is only available from 20241113 onwards
+        date_int = int(date)
+        soil_type_available = date_int >= 20241113
+        
+        # Build parameter list conditionally
+        if soil_type_available:
+            param_list = (
+                "167.128/168.128/165.128/166.128/228.128/"  # Basic met variables
+                "228246/228247/39/40/41/42/43/172/26/129"    # Wind, soil (with type), masks
+            )
+        else:
+            param_list = (
+                "167.128/168.128/165.128/166.128/228.128/"  # Basic met variables
+                "228246/228247/39/40/41/42/172/26/129"       # Wind, soil (no type), masks
+            )
+        
         return {
             "class": "od",                   # Operational data
             "expver": "1",                   # Latest operational version
             "stream": "oper",                # Operational stream
             "type": "fc",                    # Forecast type
             "levtype": "sfc",               # Surface level type
-            "param": (                       # Multiple parameters in single request
-                "167.128/168.128/165.128/166.128/228.128/"  # Basic met variables
-                "228246/228247/39/40/41/42/43/172/26/129"    # Wind, soil, masks
-            ),
+            "param": param_list,             # Multiple parameters in single request
             "date": date,                    # Forecast base date
             "time": "00:00:00",             # 00 UTC base time
             "step": forecast_steps,          # All forecast hours 0-48
