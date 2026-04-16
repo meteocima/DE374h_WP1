@@ -67,7 +67,7 @@ class c_directories:
             # Different storage strategies based on NWP model
             if self.nwp == "ifs":
                 # IFS: Final data on work storage, processing on scratch
-                self.data_path = leo_storage / "DE374_lot2_0" / "IFS"
+                self.data_path = leo_scratch / "fast" / "DE374_lot2_0" / "IFS"
                 self.scratch_path = (
                     leo_scratch / "large" / "userexternal" / "lmonaco0" / 
                     "DE374_lot2" / "ifs"
