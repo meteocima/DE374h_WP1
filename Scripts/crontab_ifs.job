@@ -20,7 +20,7 @@ yesterday=$(date -d "3 days ago" +"%Y%m%d")
 # 4. Lancia il tuo script
 # A stuck MARS request must not eat the 4h wall-time: if SLURM kills the job,
 # the sbatch below never runs and the daily chain dies. Stop the download before.
-timeout --kill-after=5m 3h30m \
+timeout --kill-after=5m 210m \
     uv run Scripts/DE374h_download.py --nwp ifs --run_where leonardo --date_i "$yesterday" --date_f "$yesterday"
 status=$?
 

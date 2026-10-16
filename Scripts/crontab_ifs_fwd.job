@@ -28,7 +28,7 @@ echo "Start date: $start_date (stop at: $stop_date, attempt $attempt/$max_attemp
 
 # A stuck MARS request must not eat the 4h wall-time: if SLURM kills the job,
 # the sbatch below never runs and the chain dies. Stop the download before.
-timeout --kill-after=5m 3h30m \
+timeout --kill-after=5m 210m \
     uv run Scripts/DE374h_download.py --nwp ifs --run_where leonardo --date_i "$start_date" --date_f "$start_date"
 status=$?
 
