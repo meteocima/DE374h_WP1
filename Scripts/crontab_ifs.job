@@ -1,5 +1,6 @@
 #!/bin/bash
 #SBATCH --job-name=de374h_ifs
+#SBATCH --account=de374_lot2
 #SBATCH --output=/leonardo_scratch/large/userexternal/lmonaco0/DE374_lot2/ifs/log/ifs_log_%j.out
 #SBATCH --error=/leonardo_scratch/large/userexternal/lmonaco0/DE374_lot2/ifs/err/ifs_err_%j.err
 #SBATCH --time=4:00:00
@@ -11,10 +12,23 @@
 
 cd $HOME/DE374_lot2/
 
+# Unbuffered output, so a killed job still shows where it was stuck.
+export PYTHONUNBUFFERED=1
+
 yesterday=$(date -d "3 days ago" +"%Y%m%d")
 
 # 4. Lancia il tuo script
-uv run Scripts/DE374h_download.py --nwp ifs --run_where leonardo --date_i "$yesterday" --date_f "$yesterday"
+# A stuck MARS request must not eat the 4h wall-time: if SLURM kills the job,
+# the sbatch below never runs and the daily chain dies. Stop the download before.
+timeout --kill-after=5m 3h30m \
+    uv run Scripts/DE374h_download.py --nwp ifs --run_where leonardo --date_i "$yesterday" --date_f "$yesterday"
+status=$?
+
+# Failed day: hand it to the forward job, which retries it up to 3 times.
+if [[ $status -ne 0 ]]; then
+    echo "Download of $yesterday failed (exit $status), handing it to crontab_ifs_fwd.job"
+    sbatch "/leonardo/home/userexternal/lmonaco0/DE374_lot2/Scripts/crontab_ifs_fwd.job" "$yesterday" "$yesterday" 2
+fi
 
 # Schedule the next run at 11:00 AM tomorrow
 next_run=$(date -d "11:00 tomorrow" +"%Y-%m-%dT%H:%M:%S")

@@ -1,0 +1,47 @@
+#!/bin/bash
+#SBATCH --job-name=de374h_ifs_fwd
+#SBATCH --account=de374_lot2
+#SBATCH --output=/leonardo_scratch/large/userexternal/lmonaco0/DE374_lot2/ifs/log/ifs_fwd_log_%j.out
+#SBATCH --error=/leonardo_scratch/large/userexternal/lmonaco0/DE374_lot2/ifs/err/ifs_fwd_err_%j.err
+#SBATCH --time=4:00:00
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=1
+#SBATCH --mem=4G
+#SBATCH --mail-type=FAIL
+#SBATCH --mail-user=luca.monaco@cimafoundation.org
+
+# Forward backfill: one day per job, self-rescheduling to the next day,
+# until the upper bound is reached. Mirror of crontab_ifs_hist.job but
+# walking forward. Each job downloads a single day (~25 min via MARS),
+# so it never approaches the 4h wall-time limit.
+
+cd $HOME/DE374_lot2/
+
+# Unbuffered output, so a killed job still shows where it was stuck.
+export PYTHONUNBUFFERED=1
+
+start_date=${1:-$(date +"%Y%m%d")}
+stop_date=${2:-20260614}
+attempt=${3:-1}
+max_attempts=3
+echo "Start date: $start_date (stop at: $stop_date, attempt $attempt/$max_attempts)"
+
+# A stuck MARS request must not eat the 4h wall-time: if SLURM kills the job,
+# the sbatch below never runs and the chain dies. Stop the download before.
+timeout --kill-after=5m 3h30m \
+    uv run Scripts/DE374h_download.py --nwp ifs --run_where leonardo --date_i "$start_date" --date_f "$start_date"
+status=$?
+
+job="/leonardo/home/userexternal/lmonaco0/DE374_lot2/Scripts/crontab_ifs_fwd.job"
+if [[ $status -ne 0 && $attempt -lt $max_attempts ]]; then
+    echo "Download failed (exit $status), retrying $start_date"
+    sbatch "$job" "$start_date" "$stop_date" $((attempt + 1))
+    exit $status
+fi
+[[ $status -ne 0 ]] && echo "GIVING UP on $start_date after $max_attempts attempts (exit $status)"
+
+next_date=$(date -d "$start_date +1 day" +"%Y%m%d")
+echo "Next date: $next_date"
+if [[ "$next_date" -le "$stop_date" ]]; then
+    sbatch "$job" "$next_date" "$stop_date"
+fi
